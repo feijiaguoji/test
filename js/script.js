@@ -22,25 +22,62 @@ if (mobileMenuBtn) {
     });
 }
 
-// Floating Contact Button
-const contactBtn = document.getElementById('contactBtn');
-const contactPopup = document.getElementById('contactPopup');
-const wechatId = document.getElementById('wechatId');
-const copyNotification = document.getElementById('copyNotification');
+document.addEventListener('DOMContentLoaded', () => {
+  // Floating Contact Button
+  const contactBtn = document.getElementById('contactBtn');
+  const contactPopup = document.getElementById('contactPopup');
 
-if (contactBtn) {
-    contactBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        contactPopup.classList.toggle('show');
-    });
-}
+  if (!contactBtn || !contactPopup) return;
 
-// Close popup when clicking outside
-document.addEventListener('click', (e) => {
-    if (contactPopup && !contactPopup.contains(e.target) && e.target !== contactBtn) {
-        contactPopup.classList.remove('show');
+  // 打开弹窗（只开不关）
+  function openWechatPopup() {
+    contactPopup.classList.add('show');
+  }
+
+  // 按钮点击：toggle
+  contactBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    contactPopup.classList.toggle('show');
+  });
+
+  // === Open popup by hash (#wechat) ===
+  function openWechatPopupByHash() {
+    if (window.location.hash === '#wechat') {
+      openWechatPopup();
     }
+  }
+
+  window.addEventListener('hashchange', openWechatPopupByHash);
+  openWechatPopupByHash(); // 首次加载带 #wechat 也能打开
+
+  // 关键：点击 “微信链接” 时，不要让 document click 把它关掉
+  document.querySelectorAll('a[href="#wechat"]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // 保持 hash（可选）
+      history.replaceState(null, '', '#wechat');
+      openWechatPopup();
+    });
+  });
+
+  // Close popup when clicking outside（排除微信触发链接）
+  document.addEventListener('click', (e) => {
+    const isWechatTrigger = e.target.closest('a[href="#wechat"]');
+    if (isWechatTrigger) return;
+
+    if (!contactPopup.contains(e.target) && e.target !== contactBtn) {
+      contactPopup.classList.remove('show');
+      // 可选：关闭时把 #wechat 清掉
+      if (window.location.hash === '#wechat') {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    }
+  });
 });
+
+
+
 
 // Copy WeChat ID
 if (wechatId) {
@@ -105,3 +142,46 @@ window.addEventListener('scroll', () => {
 
     lastScroll = currentScroll;
 });
+
+
+// Team Banner Carousel (independent)
+const teamTrack = document.getElementById('teamBannerTrack');
+const teamDotsWrap = document.getElementById('teamBannerDots');
+const teamSlides = teamTrack ? teamTrack.querySelectorAll('.team-banner-slide') : [];
+let teamIndex = 0;
+let teamTimer = null;
+
+if (teamTrack && teamDotsWrap && teamSlides.length) {
+  // create dots
+  teamSlides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'team-dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => teamGo(i));
+    teamDotsWrap.appendChild(d);
+  });
+
+  function teamGo(i) {
+    teamIndex = i;
+    teamTrack.style.transform = `translateX(-${teamIndex * 100}%)`;
+    teamDotsWrap.querySelectorAll('.team-dot').forEach((dot, idx) => {
+      dot.classList.toggle('active', idx === teamIndex);
+    });
+  }
+
+  function teamNext() {
+    teamIndex = (teamIndex + 1) % teamSlides.length;
+    teamGo(teamIndex);
+  }
+
+  // autoplay
+  teamTimer = setInterval(teamNext, 3500);
+
+  // pause on hover
+  const teamSection = document.querySelector('.team-banner');
+  teamSection.addEventListener('mouseenter', () => {
+    if (teamTimer) clearInterval(teamTimer);
+  });
+  teamSection.addEventListener('mouseleave', () => {
+    teamTimer = setInterval(teamNext, 3500);
+  });
+}
